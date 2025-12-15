@@ -56,3 +56,9 @@ Function BuildUpdateFunctions(qryName As String) As String
 
     BuildUpdateFunctions = code
 End Function
+
+Sub GenerateFunctions()
+    Dim fnCode As String
+    fnCode = BuildUpdateFunctions("qry_UpdateOrders")
+    Debug.Print fnCode
+End Sub
