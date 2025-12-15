@@ -1,0 +1,58 @@
+Function GetQuerySQL(qryName As String) As String
+    Dim qdf As DAO.QueryDef
+    Set qdf = CurrentDb.QueryDefs(qryName)
+    GetQuerySQL = qdf.SQL
+End Function
+
+Function ParseUpdateSetClause(sqlText As String) As Collection
+    Dim results As New Collection
+    Dim setStart As Long, whereStart As Long
+    Dim setText As String
+    Dim parts() As String
+    Dim i As Long
+
+    setStart = InStr(1, sqlText, "SET", vbTextCompare)
+    If setStart = 0 Then Exit Function
+
+    whereStart = InStr(1, sqlText, "WHERE", vbTextCompare)
+    If whereStart > 0 Then
+        setText = Mid(sqlText, setStart + 3, whereStart - setStart - 3)
+    Else
+        setText = Mid(sqlText, setStart + 3)
+    End If
+
+    parts = Split(setText, ",")
+
+    For i = LBound(parts) To UBound(parts)
+        results.Add Trim(parts(i))
+    Next i
+
+    Set ParseUpdateSetClause = results
+End Function
+
+Function BuildUpdateFunctions(qryName As String) As String
+    Dim sqlText As String
+    Dim updates As Collection
+    Dim line As Variant
+    Dim fieldName As String
+    Dim expr As String
+    Dim fnName As String
+    Dim code As String
+
+    sqlText = GetQuerySQL(qryName)
+    Set updates = ParseUpdateSetClause(sqlText)
+
+    For Each line In updates
+        fieldName = Trim(Split(line, "=")(0))
+        expr = Trim(Split(line, "=")(1))
+
+        fnName = "Calc_" & Replace(fieldName, ".", "_")
+
+        code = code & _
+            "Public Function " & fnName & "() As Variant" & vbCrLf & _
+            "    " & fnName & " = " & expr & vbCrLf & _
+            "End Function" & vbCrLf & vbCrLf
+    Next
+
+    BuildUpdateFunctions = code
+End Function
