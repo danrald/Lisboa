@@ -8,24 +8,57 @@ Function ParseUpdateSetClause(sqlText As String) As Collection
     Dim results As New Collection
     Dim setStart As Long, whereStart As Long
     Dim setText As String
-    Dim parts() As String
     Dim i As Long
+    Dim ch As String
+    Dim parenDepth As Long
+    Dim inQuotes As Boolean
+    Dim buffer As String
 
     setStart = InStr(1, sqlText, "SET", vbTextCompare)
     If setStart = 0 Then Exit Function
 
     whereStart = InStr(1, sqlText, "WHERE", vbTextCompare)
+
     If whereStart > 0 Then
         setText = Mid(sqlText, setStart + 3, whereStart - setStart - 3)
     Else
         setText = Mid(sqlText, setStart + 3)
     End If
 
-    parts = Split(setText, ",")
+    setText = Trim(setText)
 
-    For i = LBound(parts) To UBound(parts)
-        results.Add Trim(parts(i))
+    For i = 1 To Len(setText)
+        ch = Mid(setText, i, 1)
+
+        Select Case ch
+            Case """"
+                inQuotes = Not inQuotes
+                buffer = buffer & ch
+
+            Case "("
+                If Not inQuotes Then parenDepth = parenDepth + 1
+                buffer = buffer & ch
+
+            Case ")"
+                If Not inQuotes Then parenDepth = parenDepth - 1
+                buffer = buffer & ch
+
+            Case ","
+                If parenDepth = 0 And Not inQuotes Then
+                    results.Add Trim(buffer)
+                    buffer = ""
+                Else
+                    buffer = buffer & ch
+                End If
+
+            Case Else
+                buffer = buffer & ch
+        End Select
     Next i
+
+    If Trim(buffer) <> "" Then
+        results.Add Trim(buffer)
+    End If
 
     Set ParseUpdateSetClause = results
 End Function
